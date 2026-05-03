@@ -1,5 +1,6 @@
 # 정의 해야 할 것
 # secrets:
+#   APP_ID
 #   BASE64_KEYSTORE
 #   RELEASE_KEY_ALIAS
 #   RELEASE_KEY_PASSWORD
@@ -15,23 +16,32 @@ name: Build
 on: push
 
 env:
-  JAVA_DISTRIBUTION: corretto
-  JAVA_VERSION: 17
   VERSION_CODE: ${{ github.run_number }}
   VERSION_NAME: 1.0.0
+  COMPILE_SDK: 33
+  MIN_SDK: 21
+  TARGET_SDK: 33
+  FLUTTER_VERSION: 3.41.9
+  FLUTTER_CHANNEL: stable
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: SunChulBaek/build_android@v1
+      - uses: SunChulBaek/build_flutter@v1
         with:
-          java-distribution: ${{ env.JAVA_DISTRIBUTION }}
-          java-version: ${{ env.JAVA_VERSION }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           base64-keystore: ${{ secrets.BASE64_KEYSTORE }}
+          keystore-location: "android/keystore"
+          keystore-properties: "android/keystore.properties"
           release-key-alias: ${{ secrets.RELEASE_KEY_ALIAS }}
           release-key-password: ${{ secrets.RELEASE_KEY_PASSWORD }}
           release-store-password: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          build-properties: "android/build.properties"
+          application-id: ${{ secrets.APP_ID }}
+          compile-sdk: ${{ env.COMPILE_SDK }}
+          min-sdk: ${{ env.MIN_SDK }}
+          target-sdk: ${{ env.TARGET_SDK }}
           version-code: ${{ env.VERSION_CODE }}
           version-name: ${{ env.VERSION_NAME }}
           artifact-name: "${{ vars.APK_NAME }}-${{ env.VERSION_CODE }}"
