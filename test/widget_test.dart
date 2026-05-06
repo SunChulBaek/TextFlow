@@ -5,17 +5,18 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:text_flow/main.dart';
+import 'package:text_flow/app/text_flow_app.dart';
 
 void main() {
-  testWidgets('SMS/MMS listener page renders core text', (WidgetTester tester) async {
+  testWidgets('main page renders filter list and fab', (WidgetTester tester) async {
     await tester.pumpWidget(const TextFlowApp());
     await tester.pump();
 
-    expect(find.text('TextFlow SMS/MMS Listener'), findsOneWidget);
-    expect(find.text('최근 수신 메시지'), findsOneWidget);
-    expect(find.text('테스트 방법'), findsOneWidget);
+    expect(find.text('아직 생성된 필터가 없습니다.'), findsOneWidget);
+    expect(find.text('필터 추가'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 }
