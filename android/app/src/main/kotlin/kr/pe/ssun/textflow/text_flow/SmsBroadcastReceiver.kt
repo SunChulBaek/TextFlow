@@ -22,6 +22,7 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
         }
         val receivedAt = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
         val event = mapOf(
+            "messageType" to "sms",
             "address" to address,
             "body" to body,
             "receivedAt" to receivedAt,

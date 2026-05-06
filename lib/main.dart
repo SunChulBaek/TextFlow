@@ -27,11 +27,13 @@ class TextFlowApp extends StatelessWidget {
 
 class SmsEvent {
   const SmsEvent({
+    required this.messageType,
     required this.address,
     required this.body,
     required this.receivedAt,
   });
 
+  final String messageType;
   final String address;
   final String body;
   final DateTime receivedAt;
@@ -46,6 +48,7 @@ class SmsEvent {
     };
 
     return SmsEvent(
+      messageType: (map['messageType'] as String?)?.toLowerCase() == 'mms' ? 'mms' : 'sms',
       address: (map['address'] as String?)?.trim().isNotEmpty == true
           ? map['address']! as String
           : '알 수 없음',
@@ -102,7 +105,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
       }
 
       setState(() {
-        _statusMessage = 'SMS 수신 이벤트는 Android에서만 지원됩니다.';
+        _statusMessage = 'SMS/MMS 수신 이벤트는 Android에서만 지원됩니다.';
         _isListening = false;
       });
       return;
@@ -114,7 +117,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
 
   Future<void> _requestPermissionAndStartListening() async {
     setState(() {
-      _statusMessage = 'SMS 권한을 확인하는 중입니다...';
+      _statusMessage = '메시지 권한을 확인하는 중입니다...';
       _errorMessage = null;
     });
 
@@ -134,7 +137,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
 
       if (!resolvedStatus.isGranted) {
         setState(() {
-          _statusMessage = 'SMS 수신 권한이 필요합니다.';
+          _statusMessage = '메시지 수신 권한이 필요합니다.';
           _isListening = false;
         });
         return;
@@ -157,7 +160,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
       }
 
       setState(() {
-        _statusMessage = 'SMS 권한 확인에 실패했습니다.';
+        _statusMessage = '메시지 권한 확인에 실패했습니다.';
         _errorMessage = error.toString();
         _isListening = false;
       });
@@ -172,7 +175,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     }
 
     setState(() {
-      _statusMessage = 'SMS 수신 대기 중';
+      _statusMessage = '메시지 수신 대기 중';
       _errorMessage = null;
       _isListening = true;
     });
@@ -185,7 +188,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
           }
 
           setState(() {
-            _statusMessage = '알 수 없는 SMS 이벤트 형식입니다.';
+            _statusMessage = '알 수 없는 메시지 이벤트 형식입니다.';
             _isListening = false;
           });
           return;
@@ -198,7 +201,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
 
         setState(() {
           _latestSms = sms;
-          _statusMessage = '새 SMS를 수신했습니다.';
+          _statusMessage = '새 메시지를 수신했습니다.';
           _errorMessage = null;
           _isListening = true;
         });
@@ -209,7 +212,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
         }
 
         setState(() {
-          _statusMessage = 'SMS 수신 대기 중 오류가 발생했습니다.';
+          _statusMessage = '메시지 수신 대기 중 오류가 발생했습니다.';
           _errorMessage = error.toString();
           _isListening = false;
         });
@@ -224,7 +227,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     }
 
     try {
-      final event = await _smsStore.invokeMapMethod<Object?, Object?>('getLatestSms');
+      final event = await _smsStore.invokeMapMethod<Object?, Object?>('getLatestMessage');
       if (event == null || !mounted) {
         return;
       }
@@ -232,7 +235,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
       final sms = SmsEvent.fromMap(event);
       setState(() {
         _latestSms = sms;
-        _statusMessage = _isListening ? 'SMS 수신 대기 중' : '최근 수신 SMS를 불러왔습니다.';
+        _statusMessage = _isListening ? '메시지 수신 대기 중' : '최근 수신 메시지를 불러왔습니다.';
         _errorMessage = null;
       });
     } on MissingPluginException {
@@ -243,7 +246,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
       }
 
       setState(() {
-        _errorMessage = '최근 SMS 복원 실패: $error';
+        _errorMessage = '최근 메시지 복원 실패: $error';
       });
     }
   }
@@ -291,7 +294,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.colorScheme.inversePrimary,
-        title: const Text('TextFlow SMS Listener'),
+        title: const Text('TextFlow SMS/MMS Listener'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -316,13 +319,15 @@ class _SmsListenerPageState extends State<SmsListenerPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '최근 수신 SMS',
+                    '최근 수신 메시지',
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 12),
                   if (_latestSms == null)
-                    const Text('아직 수신된 SMS 이벤트가 없습니다.')
+                    const Text('아직 수신된 메시지 이벤트가 없습니다.')
                   else ...[
+                    Text('유형: ${_latestSms!.messageType.toUpperCase()}'),
+                    const SizedBox(height: 8),
                     Text('발신 번호: ${_latestSms!.address}'),
                     const SizedBox(height: 8),
                     Text('수신 시각: ${_formatDateTime(_latestSms!.receivedAt)}'),
@@ -346,8 +351,8 @@ class _SmsListenerPageState extends State<SmsListenerPage>
                   ),
                   const SizedBox(height: 8),
                   const Text('1. Android 실기기에서 앱을 실행합니다.'),
-                  const Text('2. 첫 실행 시 SMS 권한을 허용합니다.'),
-                  const Text('3. 다른 번호에서 이 기기로 SMS를 보내면 화면이 즉시 갱신됩니다.'),
+                  const Text('2. 첫 실행 시 메시지 권한을 허용합니다.'),
+                  const Text('3. 다른 번호에서 이 기기로 SMS 또는 MMS를 보내면 화면이 갱신됩니다.'),
                 ],
               ),
             ),

@@ -10,12 +10,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:text_flow/main.dart';
 
 void main() {
-  testWidgets('SMS listener page renders core text', (WidgetTester tester) async {
+  testWidgets('SMS/MMS listener page renders core text', (WidgetTester tester) async {
     await tester.pumpWidget(const TextFlowApp());
     await tester.pump();
 
-    expect(find.text('TextFlow SMS Listener'), findsOneWidget);
-    expect(find.text('최근 수신 SMS'), findsOneWidget);
+    expect(find.text('TextFlow SMS/MMS Listener'), findsOneWidget);
+    expect(find.text('최근 수신 메시지'), findsOneWidget);
     expect(find.text('테스트 방법'), findsOneWidget);
   });
 }

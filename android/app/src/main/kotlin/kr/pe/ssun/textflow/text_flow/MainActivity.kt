@@ -15,11 +15,13 @@ private const val smsStoreName = "textflow_sms_store"
 private const val keyAddress = "address"
 private const val keyBody = "body"
 private const val keyReceivedAt = "receivedAt"
+private const val keyMessageType = "messageType"
 
 object SmsStorage {
 	fun save(context: Context, event: Map<String, Any?>) {
 		context.getSharedPreferences(smsStoreName, Context.MODE_PRIVATE)
 			.edit()
+			.putString(keyMessageType, event[keyMessageType] as? String ?: "sms")
 			.putString(keyAddress, event[keyAddress] as? String ?: "알 수 없음")
 			.putString(keyBody, event[keyBody] as? String ?: "")
 			.putLong(
@@ -42,6 +44,7 @@ object SmsStorage {
 		}
 
 		return mapOf(
+			keyMessageType to (prefs.getString(keyMessageType, "sms") ?: "sms"),
 			keyAddress to (prefs.getString(keyAddress, "알 수 없음") ?: "알 수 없음"),
 			keyBody to (prefs.getString(keyBody, "") ?: ""),
 			keyReceivedAt to prefs.getLong(keyReceivedAt, System.currentTimeMillis())
@@ -92,6 +95,7 @@ class MainActivity : FlutterActivity() {
 		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, smsStoreChannel)
 			.setMethodCallHandler { call, result ->
 				when (call.method) {
+					"getLatestMessage" -> result.success(SmsStorage.latest(applicationContext))
 					"getLatestSms" -> result.success(SmsStorage.latest(applicationContext))
 					else -> result.notImplemented()
 				}
