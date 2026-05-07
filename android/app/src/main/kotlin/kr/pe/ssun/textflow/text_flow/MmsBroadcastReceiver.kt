@@ -15,7 +15,8 @@ class MmsBroadcastReceiver : BroadcastReceiver() {
 
         val isMmsPush = action == Telephony.Sms.Intents.WAP_PUSH_RECEIVED_ACTION ||
             action == Telephony.Sms.Intents.WAP_PUSH_DELIVER_ACTION
-        if (!isMmsPush || mimeType != MMS_MIME_TYPE) {
+        val isMmsMime = mimeType == null || mimeType.equals(MMS_MIME_TYPE, ignoreCase = true)
+        if (!isMmsPush || !isMmsMime) {
             return
         }
 

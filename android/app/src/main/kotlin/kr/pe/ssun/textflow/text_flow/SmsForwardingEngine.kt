@@ -2,11 +2,13 @@ package kr.pe.ssun.textflow.text_flow
 
 import android.content.Context
 import android.telephony.SmsManager
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 
 private const val filterStoreName = "textflow_filter_store"
 private const val keyFiltersJson = "filters_json"
+private const val forwardingTag = "TextFlowForwarding"
 
 data class ForwardingFilterConfig(
 	val title: String,
@@ -129,7 +131,7 @@ object SmsForwardingEngine {
 		}
 
 		val senderMatched = filter.senderConditions.any { condition ->
-			matchesCondition(address, condition, filter.ignoreCase, filter.useWildcard)
+			matchesSenderCondition(address, condition, filter.useWildcard)
 		}
 		if (senderMatched) {
 			return true
@@ -138,6 +140,21 @@ object SmsForwardingEngine {
 		return filter.messageConditions.any { condition ->
 			matchesCondition(body, condition, filter.ignoreCase, filter.useWildcard)
 		}
+	}
+
+	private fun matchesSenderCondition(targetAddress: String, condition: String, useWildcard: Boolean): Boolean {
+		val normalizedTarget = normalizeAddressForMatch(targetAddress, keepWildcard = false)
+		val normalizedCondition = normalizeAddressForMatch(condition, keepWildcard = useWildcard)
+		if (normalizedCondition.isBlank() || normalizedTarget.isBlank()) {
+			return false
+		}
+
+		if (!useWildcard) {
+			return normalizedTarget.contains(normalizedCondition)
+		}
+
+		val regexPattern = Regex.escape(normalizedCondition).replace("\\*", ".*")
+		return Regex(regexPattern).containsMatchIn(normalizedTarget)
 	}
 
 	private fun matchesCondition(
@@ -176,8 +193,38 @@ object SmsForwardingEngine {
 
 	private fun sendSms(destination: String, body: String) {
 		runCatching {
-			SmsManager.getDefault().sendTextMessage(destination, null, body, null, null)
+			val smsManager = SmsManager.getDefault()
+			val messageBody = body.ifBlank { "(본문 없음)" }
+			val parts = smsManager.divideMessage(messageBody)
+			if (parts.size <= 1) {
+				smsManager.sendTextMessage(destination, null, messageBody, null, null)
+			} else {
+				smsManager.sendMultipartTextMessage(destination, null, ArrayList(parts), null, null)
+			}
+		}.onFailure { error ->
+			Log.e(forwardingTag, "Failed to forward SMS to $destination", error)
 		}
+	}
+
+	private fun normalizeAddressForMatch(raw: String, keepWildcard: Boolean): String {
+		val trimmed = raw.trim()
+		if (trimmed.isEmpty()) {
+			return ""
+		}
+
+		val filtered = buildString(trimmed.length) {
+			trimmed.forEach { ch ->
+				if (ch.isDigit() || (keepWildcard && ch == '*')) {
+					append(ch)
+				}
+			}
+		}
+
+		if (filtered.startsWith("82") && filtered.length >= 9) {
+			return "0${filtered.drop(2)}"
+		}
+
+		return filtered
 	}
 }
 
