@@ -110,8 +110,27 @@ class MainActivity : FlutterActivity() {
 						FilterConfigStorage.saveFilters(applicationContext, filters)
 						result.success(true)
 					}
+					"getFilters" -> {
+						val filters = FilterConfigStorage.loadFilters(applicationContext)
+						result.success(filters.map { it.toChannelMap() })
+					}
 					else -> result.notImplemented()
 				}
 			}
 	}
+}
+
+private fun ForwardingFilterConfig.toChannelMap(): Map<String, Any?> {
+	return mapOf(
+		"title" to title,
+		"enabled" to enabled,
+		"allowSms" to allowSms,
+		"allowMms" to allowMms,
+		"forwardAll" to forwardAll,
+		"ignoreCase" to ignoreCase,
+		"useWildcard" to useWildcard,
+		"senderConditions" to senderConditions,
+		"messageConditions" to messageConditions,
+		"destinations" to destinations,
+	)
 }

@@ -34,7 +34,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_syncFiltersToNative());
+    unawaited(_loadFiltersFromNative());
     unawaited(_initializeSmsHandling());
   }
 
@@ -322,6 +322,92 @@ class _SmsListenerPageState extends State<SmsListenerPage>
       filter.enabled = value;
     });
     unawaited(_syncFiltersToNative());
+  }
+
+  bool _asBool(Object? value, {required bool fallback}) {
+    if (value is bool) {
+      return value;
+    }
+    return fallback;
+  }
+
+  List<String> _asStringList(Object? value) {
+    if (value is! List) {
+      return const [];
+    }
+
+    return value
+        .map((item) => item?.toString().trim() ?? '')
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  ForwardingFilter? _fromNativeFilterMap(Map<Object?, Object?> map, int id) {
+    final title = (map['title'] as String?)?.trim() ?? '';
+    if (title.isEmpty) {
+      return null;
+    }
+
+    return ForwardingFilter(
+      id: id,
+      title: title,
+      allowSms: _asBool(map['allowSms'], fallback: true),
+      allowMms: _asBool(map['allowMms'], fallback: true),
+      forwardAll: _asBool(map['forwardAll'], fallback: true),
+      ignoreCase: _asBool(map['ignoreCase'], fallback: true),
+      useWildcard: _asBool(map['useWildcard'], fallback: false),
+      senderConditions: _asStringList(map['senderConditions']),
+      messageConditions: _asStringList(map['messageConditions']),
+      destinations: _asStringList(map['destinations']),
+      keepHistory: true,
+      notifyResult: true,
+      enabled: _asBool(map['enabled'], fallback: true),
+    );
+  }
+
+  Future<void> _loadFiltersFromNative() async {
+    if (!Platform.isAndroid) {
+      return;
+    }
+
+    try {
+      final rawFilters = await _filterConfig.invokeListMethod<Object?>('getFilters') ?? const [];
+      final restoredFilters = <ForwardingFilter>[];
+      var nextId = 1;
+
+      for (final raw in rawFilters) {
+        if (raw is! Map<Object?, Object?>) {
+          continue;
+        }
+
+        final restored = _fromNativeFilterMap(raw, nextId);
+        if (restored == null) {
+          continue;
+        }
+
+        restoredFilters.add(restored);
+        nextId += 1;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _filters
+          ..clear()
+          ..addAll(restoredFilters);
+        _nextFilterId = nextId;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = '필터 복원 실패: $error';
+      });
+    }
   }
 
   Map<String, Object?> _toNativeFilterMap(ForwardingFilter filter) {

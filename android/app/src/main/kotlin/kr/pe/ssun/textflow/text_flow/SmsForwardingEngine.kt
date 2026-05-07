@@ -115,7 +115,7 @@ object SmsForwardingEngine {
 				phoneDestinations.forEach { destination ->
 					sendSms(destination, forwardedText)
 				}
-			}
+				}
 	}
 
 	private fun matchesType(filter: ForwardingFilterConfig, messageType: String): Boolean {
@@ -187,8 +187,7 @@ object SmsForwardingEngine {
 	}
 
 	private fun buildForwardedMessage(title: String, messageType: String, from: String, body: String): String {
-		val typeLabel = if (messageType == "mms") "MMS" else "SMS"
-		return "[TextFlow/$title] $typeLabel from $from\n$body"
+		return body.ifBlank { "(본문 없음)" }
 	}
 
 	private fun sendSms(destination: String, body: String) {
@@ -199,7 +198,12 @@ object SmsForwardingEngine {
 			if (parts.size <= 1) {
 				smsManager.sendTextMessage(destination, null, messageBody, null, null)
 			} else {
-				smsManager.sendMultipartTextMessage(destination, null, ArrayList(parts), null, null)
+				// sentIntents/deliveryIntents 없이 ArrayList<PendingIntent?>를 null로 전달하면
+				// 수신 측이 연결된 단일 메시지로 처리합니다.
+				val nullIntents = ArrayList<android.app.PendingIntent?>(parts.size).apply {
+					repeat(parts.size) { add(null) }
+				}
+				smsManager.sendMultipartTextMessage(destination, null, ArrayList(parts), nullIntents, nullIntents)
 			}
 		}.onFailure { error ->
 			Log.e(forwardingTag, "Failed to forward SMS to $destination", error)
