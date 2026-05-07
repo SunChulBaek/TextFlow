@@ -289,7 +289,10 @@ class _SmsListenerPageState extends State<SmsListenerPage>
               children: [
                 Text(
                   filter.title,
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.primary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -323,7 +326,9 @@ class _SmsListenerPageState extends State<SmsListenerPage>
           children: [
             Text(
               '아직 생성된 필터가 없습니다.',
-              style: theme.textTheme.titleMedium,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
