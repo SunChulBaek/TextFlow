@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:text_flow/features/sms/presentation/sms_listener_page.dart';
 
+const Color _brandSeedColor = Color(0xFF3D7CCC);
+
 class TextFlowApp extends StatelessWidget {
   const TextFlowApp({super.key});
 
@@ -14,14 +16,14 @@ class TextFlowApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFF9A825),
+          seedColor: _brandSeedColor,
           brightness: Brightness.light,
         ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFF9A825),
+          seedColor: _brandSeedColor,
           brightness: Brightness.dark,
         ),
       ),
