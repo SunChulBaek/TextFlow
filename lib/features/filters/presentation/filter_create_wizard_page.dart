@@ -7,9 +7,11 @@ class FilterCreateWizardPage extends StatefulWidget {
   const FilterCreateWizardPage({
     super.key,
     required this.nextIndex,
+    this.initialDraft,
   });
 
   final int nextIndex;
+  final FilterDraft? initialDraft;
 
   @override
   State<FilterCreateWizardPage> createState() => _FilterCreateWizardPageState();
@@ -31,10 +33,29 @@ class _FilterCreateWizardPageState extends State<FilterCreateWizardPage> {
   final List<String> _messageConditions = [];
   final List<String> _destinations = [];
 
+  bool get _isEditMode => widget.initialDraft != null;
+
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: '필터 ${widget.nextIndex}');
+    final initial = widget.initialDraft;
+    _nameController = TextEditingController(
+      text: initial?.title ?? '필터 ${widget.nextIndex}',
+    );
+
+    if (initial != null) {
+      _allowSms = initial.allowSms;
+      _allowMms = initial.allowMms;
+      _forwardAll = initial.forwardAll;
+      _ignoreCase = initial.ignoreCase;
+      _useWildcard = initial.useWildcard;
+      _enabled = initial.enabled;
+      _keepHistory = initial.keepHistory;
+      _notifyResult = initial.notifyResult;
+      _senderConditions.addAll(initial.senderConditions);
+      _messageConditions.addAll(initial.messageConditions);
+      _destinations.addAll(initial.destinations);
+    }
   }
 
   @override
@@ -113,21 +134,47 @@ class _FilterCreateWizardPageState extends State<FilterCreateWizardPage> {
     }
 
     Navigator.of(context).pop(
-      FilterDraft(
-        title: _nameController.text.trim(),
-        enabled: _enabled,
-        allowSms: _allowSms,
-        allowMms: _allowMms,
-        forwardAll: _forwardAll,
-        ignoreCase: _ignoreCase,
-        useWildcard: _useWildcard,
-        senderConditions: List<String>.from(_senderConditions),
-        messageConditions: List<String>.from(_messageConditions),
-        destinations: List<String>.from(_destinations),
-        keepHistory: _keepHistory,
-        notifyResult: _notifyResult,
+      FilterWizardResult.saved(
+        FilterDraft(
+          title: _nameController.text.trim(),
+          enabled: _enabled,
+          allowSms: _allowSms,
+          allowMms: _allowMms,
+          forwardAll: _forwardAll,
+          ignoreCase: _ignoreCase,
+          useWildcard: _useWildcard,
+          senderConditions: List<String>.from(_senderConditions),
+          messageConditions: List<String>.from(_messageConditions),
+          destinations: List<String>.from(_destinations),
+          keepHistory: _keepHistory,
+          notifyResult: _notifyResult,
+        ),
       ),
     );
+  }
+
+  Future<void> _deleteCurrentFilter() async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('필터 삭제'),
+        content: const Text('현재 필터를 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true && mounted) {
+      Navigator.of(context).pop(const FilterWizardResult.deleted());
+    }
   }
 
   Widget _buildConditionStep(BuildContext context) {
@@ -350,7 +397,17 @@ class _FilterCreateWizardPageState extends State<FilterCreateWizardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_stepTitle())),
+      appBar: AppBar(
+        title: Text(_stepTitle()),
+        actions: [
+          if (_isEditMode)
+            IconButton(
+              tooltip: '필터 삭제',
+              onPressed: _deleteCurrentFilter,
+              icon: const Icon(Icons.delete_outline),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),

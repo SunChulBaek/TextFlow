@@ -60,3 +60,15 @@ class FilterDraft {
   final bool notifyResult;
 }
 
+class FilterWizardResult {
+  const FilterWizardResult.saved(FilterDraft this.draft)
+      : deleted = false;
+
+  const FilterWizardResult.deleted()
+      : draft = null,
+        deleted = true;
+
+  final FilterDraft? draft;
+  final bool deleted;
+}
+

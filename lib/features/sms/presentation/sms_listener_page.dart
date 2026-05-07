@@ -204,11 +204,12 @@ class _SmsListenerPageState extends State<SmsListenerPage>
   }
 
   Future<void> _addFilter() async {
-    final draft = await Navigator.of(context).push<FilterDraft>(
+    final result = await Navigator.of(context).push<FilterWizardResult>(
       MaterialPageRoute(
         builder: (_) => FilterCreateWizardPage(nextIndex: _nextFilterId),
       ),
     );
+    final draft = result?.draft;
     if (draft == null || !mounted) {
       return;
     }
@@ -230,6 +231,70 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     );
     setState(() {
       _filters.add(filter);
+    });
+    await _syncFiltersToNative();
+  }
+
+  FilterDraft _toDraft(ForwardingFilter filter) {
+    return FilterDraft(
+      title: filter.title,
+      enabled: filter.enabled,
+      allowSms: filter.allowSms,
+      allowMms: filter.allowMms,
+      forwardAll: filter.forwardAll,
+      ignoreCase: filter.ignoreCase,
+      useWildcard: filter.useWildcard,
+      senderConditions: List<String>.from(filter.senderConditions),
+      messageConditions: List<String>.from(filter.messageConditions),
+      destinations: List<String>.from(filter.destinations),
+      keepHistory: filter.keepHistory,
+      notifyResult: filter.notifyResult,
+    );
+  }
+
+  Future<void> _editFilter(int index) async {
+    final current = _filters[index];
+    final result = await Navigator.of(context).push<FilterWizardResult>(
+      MaterialPageRoute(
+        builder: (_) => FilterCreateWizardPage(
+          nextIndex: current.id,
+          initialDraft: _toDraft(current),
+        ),
+      ),
+    );
+    if (!mounted || result == null) {
+      return;
+    }
+
+    if (result.deleted) {
+      setState(() {
+        _filters.removeAt(index);
+      });
+      await _syncFiltersToNative();
+      return;
+    }
+
+    final draft = result.draft;
+    if (draft == null) {
+      return;
+    }
+
+    setState(() {
+      _filters[index] = ForwardingFilter(
+        id: current.id,
+        title: draft.title,
+        allowSms: draft.allowSms,
+        allowMms: draft.allowMms,
+        forwardAll: draft.forwardAll,
+        ignoreCase: draft.ignoreCase,
+        useWildcard: draft.useWildcard,
+        senderConditions: draft.senderConditions,
+        messageConditions: draft.messageConditions,
+        destinations: draft.destinations,
+        keepHistory: draft.keepHistory,
+        notifyResult: draft.notifyResult,
+        enabled: draft.enabled,
+      );
     });
     await _syncFiltersToNative();
   }
@@ -307,50 +372,57 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     );
   }
 
-  Widget _buildFilterItem(BuildContext context, ForwardingFilter filter) {
+  Widget _buildFilterItem(BuildContext context, ForwardingFilter filter, int index) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      child: Row(
-        children: [
-          _buildFilterIcon(context),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  filter.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.primary,
-                  ),
+        onTap: () => unawaited(_editFilter(index)),
+        child: Container(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              _buildFilterIcon(context),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      filter.title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_messageTypeLabel(filter)} · ${_conditionLabel(filter)} · 대상 ${filter.destinations.length}개',
+                      style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_messageTypeLabel(filter)} · ${_conditionLabel(filter)} · 대상 ${filter.destinations.length}개',
-                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
+              ),
+              Switch(
+                value: filter.enabled,
+                onChanged: (value) => _toggleFilter(filter, value),
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: () => unawaited(_editFilter(index)),
+                splashRadius: 18,
+              ),
+            ],
           ),
-          Switch(
-            value: filter.enabled,
-            onChanged: (value) => _toggleFilter(filter, value),
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-            splashRadius: 18,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -430,7 +502,11 @@ class _SmsListenerPageState extends State<SmsListenerPage>
                   : ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       itemCount: _filters.length,
-                      itemBuilder: (context, index) => _buildFilterItem(context, _filters[index]),
+                      itemBuilder: (context, index) => _buildFilterItem(
+                        context,
+                        _filters[index],
+                        index,
+                      ),
                       separatorBuilder: (_, index) => const SizedBox(height: 14),
                     ),
             ),
