@@ -255,30 +255,32 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     });
   }
 
-  Widget _buildFilterIcon() {
+  Widget _buildFilterIcon(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFFE9EEF8),
+        color: scheme.primaryContainer,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(Icons.message_outlined, color: Color(0xFF3D7CCC), size: 30),
+      child: Icon(Icons.message_outlined, color: scheme.onPrimaryContainer, size: 30),
     );
   }
 
   Widget _buildFilterItem(BuildContext context, ForwardingFilter filter) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1016),
+        color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white24),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       child: Row(
         children: [
-          _buildFilterIcon(),
+          _buildFilterIcon(context),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -292,7 +294,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
                 const SizedBox(height: 4),
                 Text(
                   '${_messageTypeLabel(filter)} · ${_conditionLabel(filter)} · 대상 ${filter.destinations.length}개',
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -300,10 +302,6 @@ class _SmsListenerPageState extends State<SmsListenerPage>
           Switch(
             value: filter.enabled,
             onChanged: (value) => _toggleFilter(filter, value),
-            activeThumbColor: const Color(0xFFFFA000),
-            activeTrackColor: const Color(0xFF5A3B00),
-            inactiveThumbColor: Colors.grey.shade500,
-            inactiveTrackColor: Colors.grey.shade800,
           ),
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -330,7 +328,9 @@ class _SmsListenerPageState extends State<SmsListenerPage>
             const SizedBox(height: 8),
             Text(
               '하단 + 버튼으로 필터 추가 단계를 시작하세요.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
@@ -402,7 +402,9 @@ class _SmsListenerPageState extends State<SmsListenerPage>
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 '상태: $_statusMessage · 권한: ${_permissionLabel()}',
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -411,8 +413,8 @@ class _SmsListenerPageState extends State<SmsListenerPage>
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton(
         onPressed: () => unawaited(_addFilter()),
-        backgroundColor: const Color(0xFFFFA000),
-        foregroundColor: Colors.black,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, size: 36),
       ),
