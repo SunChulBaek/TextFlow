@@ -10,6 +10,7 @@ import io.flutter.plugin.common.MethodChannel
 
 private const val smsEventsChannel = "textflow/sms_events"
 private const val smsStoreChannel = "textflow/sms_store"
+private const val filterConfigChannel = "textflow/filter_config"
 
 private const val smsStoreName = "textflow_sms_store"
 private const val keyAddress = "address"
@@ -97,6 +98,18 @@ class MainActivity : FlutterActivity() {
 				when (call.method) {
 					"getLatestMessage" -> result.success(SmsStorage.latest(applicationContext))
 					"getLatestSms" -> result.success(SmsStorage.latest(applicationContext))
+					else -> result.notImplemented()
+				}
+			}
+
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, filterConfigChannel)
+			.setMethodCallHandler { call, result ->
+				when (call.method) {
+					"setFilters" -> {
+						val filters = call.arguments as? List<*> ?: emptyList<Any?>()
+						FilterConfigStorage.saveFilters(applicationContext, filters)
+						result.success(true)
+					}
 					else -> result.notImplemented()
 				}
 			}

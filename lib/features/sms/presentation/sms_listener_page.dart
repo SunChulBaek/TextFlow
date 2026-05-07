@@ -20,6 +20,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     with WidgetsBindingObserver {
   static const EventChannel _smsEvents = EventChannel('textflow/sms_events');
   static const MethodChannel _smsStore = MethodChannel('textflow/sms_store');
+  static const MethodChannel _filterConfig = MethodChannel('textflow/filter_config');
 
   StreamSubscription<dynamic>? _smsSubscription;
   PermissionStatus? _permissionStatus;
@@ -33,6 +34,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_syncFiltersToNative());
     unawaited(_initializeSmsHandling());
   }
 
@@ -229,6 +231,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     setState(() {
       _filters.add(filter);
     });
+    await _syncFiltersToNative();
   }
 
   String _messageTypeLabel(ForwardingFilter filter) {
@@ -253,6 +256,42 @@ class _SmsListenerPageState extends State<SmsListenerPage>
     setState(() {
       filter.enabled = value;
     });
+    unawaited(_syncFiltersToNative());
+  }
+
+  Map<String, Object?> _toNativeFilterMap(ForwardingFilter filter) {
+    return {
+      'title': filter.title,
+      'enabled': filter.enabled,
+      'allowSms': filter.allowSms,
+      'allowMms': filter.allowMms,
+      'forwardAll': filter.forwardAll,
+      'ignoreCase': filter.ignoreCase,
+      'useWildcard': filter.useWildcard,
+      'senderConditions': List<String>.from(filter.senderConditions),
+      'messageConditions': List<String>.from(filter.messageConditions),
+      'destinations': List<String>.from(filter.destinations),
+    };
+  }
+
+  Future<void> _syncFiltersToNative() async {
+    if (!Platform.isAndroid) {
+      return;
+    }
+
+    final serializedFilters = _filters.map(_toNativeFilterMap).toList();
+
+    try {
+      await _filterConfig.invokeMethod('setFilters', serializedFilters);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = '필터 동기화 실패: $error';
+      });
+    }
   }
 
   Widget _buildFilterIcon(BuildContext context) {
@@ -392,7 +431,7 @@ class _SmsListenerPageState extends State<SmsListenerPage>
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       itemCount: _filters.length,
                       itemBuilder: (context, index) => _buildFilterItem(context, _filters[index]),
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
+                      separatorBuilder: (_, index) => const SizedBox(height: 14),
                     ),
             ),
             if (_errorMessage != null)

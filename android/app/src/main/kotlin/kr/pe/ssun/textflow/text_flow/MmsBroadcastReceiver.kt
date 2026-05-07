@@ -21,6 +21,7 @@ class MmsBroadcastReceiver : BroadcastReceiver() {
 
         val event = runCatching { buildLatestMmsEvent(safeContext) }.getOrNull() ?: return
         SmsStorage.save(safeContext, event)
+        SmsForwardingEngine.forwardIfMatched(safeContext, event)
         SmsEventBridge.dispatch(event)
     }
 

@@ -28,7 +28,10 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
             "receivedAt" to receivedAt,
         )
 
-        context?.let { SmsStorage.save(it, event) }
+        context?.let {
+            SmsStorage.save(it, event)
+            SmsForwardingEngine.forwardIfMatched(it, event)
+        }
 
         SmsEventBridge.dispatch(event)
     }
