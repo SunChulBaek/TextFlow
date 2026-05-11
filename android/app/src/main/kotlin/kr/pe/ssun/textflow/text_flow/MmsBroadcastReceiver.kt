@@ -5,6 +5,8 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.Telephony
 
 class MmsBroadcastReceiver : BroadcastReceiver() {
@@ -20,13 +22,28 @@ class MmsBroadcastReceiver : BroadcastReceiver() {
             return
         }
 
-        val event = runCatching { buildLatestMmsEvent(safeContext) }.getOrNull() ?: return
-        SmsStorage.save(safeContext, event)
-        SmsForwardingEngine.forwardIfMatched(safeContext, event)
-        SmsEventBridge.dispatch(event)
+        // MMS 파트가 아직 DB에 완전히 기록되기 전 브로드캐스트가 도착할 수 있어,
+        // 짧게 지연 후 조회하고 MMS ID 기반으로 중복 처리를 막습니다.
+        val pendingResult = goAsync()
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                val mmsEvent = runCatching { buildLatestMmsEvent(safeContext) }.getOrNull() ?: return@postDelayed
+                if (isDuplicateMms(safeContext, mmsEvent.id, mmsEvent.receivedAt)) {
+                    return@postDelayed
+                }
+
+                markProcessedMms(safeContext, mmsEvent.id, mmsEvent.receivedAt)
+                val event = mmsEvent.toChannelMap()
+                SmsStorage.save(safeContext, event)
+                SmsForwardingEngine.forwardIfMatched(safeContext, event)
+                SmsEventBridge.dispatch(event)
+            } finally {
+                pendingResult.finish()
+            }
+        }, MMS_QUERY_DELAY_MS)
     }
 
-    private fun buildLatestMmsEvent(context: Context): Map<String, Any?>? {
+    private fun buildLatestMmsEvent(context: Context): MmsEvent? {
         val resolver = context.contentResolver
         val inboxUri = Uri.parse("content://mms/inbox")
         val projection = arrayOf("_id", "date")
@@ -47,15 +64,30 @@ class MmsBroadcastReceiver : BroadcastReceiver() {
             val address = queryMmsAddress(context, id)
             val body = queryMmsTextBody(context, id)
 
-            return mapOf(
-                "messageType" to "mms",
-                "address" to address,
-                "body" to body,
-                "receivedAt" to receivedAt,
+            return MmsEvent(
+                id = id,
+                address = address,
+                body = body,
+                receivedAt = receivedAt,
             )
         }
 
         return null
+    }
+
+    private fun isDuplicateMms(context: Context, mmsId: String, receivedAt: Long): Boolean {
+        val prefs = context.getSharedPreferences(MMS_RECEIVER_PREFS, Context.MODE_PRIVATE)
+        val lastId = prefs.getString(KEY_LAST_MMS_ID, null)
+        val lastReceivedAt = prefs.getLong(KEY_LAST_MMS_RECEIVED_AT, -1L)
+        return lastId == mmsId && lastReceivedAt == receivedAt
+    }
+
+    private fun markProcessedMms(context: Context, mmsId: String, receivedAt: Long) {
+        context.getSharedPreferences(MMS_RECEIVER_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_MMS_ID, mmsId)
+            .putLong(KEY_LAST_MMS_RECEIVED_AT, receivedAt)
+            .apply()
     }
 
     private fun queryMmsAddress(context: Context, messageId: String): String {
@@ -111,7 +143,27 @@ class MmsBroadcastReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val MMS_RECEIVER_PREFS = "textflow_mms_receiver_store"
+        private const val KEY_LAST_MMS_ID = "last_mms_id"
+        private const val KEY_LAST_MMS_RECEIVED_AT = "last_mms_received_at"
+        private const val MMS_QUERY_DELAY_MS = 1200L
         private const val MMS_MIME_TYPE = "application/vnd.wap.mms-message"
+    }
+}
+
+private data class MmsEvent(
+    val id: String,
+    val address: String,
+    val body: String,
+    val receivedAt: Long,
+) {
+    fun toChannelMap(): Map<String, Any?> {
+        return mapOf(
+            "messageType" to "mms",
+            "address" to address,
+            "body" to body,
+            "receivedAt" to receivedAt,
+        )
     }
 }
 
