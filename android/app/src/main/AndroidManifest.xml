@@ -59,6 +59,16 @@
                 <data android:mimeType="application/vnd.wap.mms-message" />
             </intent-filter>
         </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="kr.pe.ssun.textflow.text_flow.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

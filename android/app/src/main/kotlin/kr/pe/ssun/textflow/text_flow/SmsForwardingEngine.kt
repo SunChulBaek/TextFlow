@@ -1,7 +1,6 @@
 package kr.pe.ssun.textflow.text_flow
 
 import android.content.Context
-import android.telephony.SmsManager
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
@@ -113,7 +112,7 @@ object SmsForwardingEngine {
 
 				val forwardedText = buildForwardedMessage(filter.title, messageType, address, body)
 				phoneDestinations.forEach { destination ->
-					sendSms(destination, forwardedText)
+					sendSms(context, destination, forwardedText)
 				}
 				}
 	}
@@ -190,23 +189,11 @@ object SmsForwardingEngine {
 		return body.ifBlank { "(본문 없음)" }
 	}
 
-	private fun sendSms(destination: String, body: String) {
+	private fun sendSms(context: Context, destination: String, body: String) {
 		runCatching {
-			val smsManager = SmsManager.getDefault()
-			val messageBody = body.ifBlank { "(본문 없음)" }
-			val parts = smsManager.divideMessage(messageBody)
-			if (parts.size <= 1) {
-				smsManager.sendTextMessage(destination, null, messageBody, null, null)
-			} else {
-				// sentIntents/deliveryIntents 없이 ArrayList<PendingIntent?>를 null로 전달하면
-				// 수신 측이 연결된 단일 메시지로 처리합니다.
-				val nullIntents = ArrayList<android.app.PendingIntent?>(parts.size).apply {
-					repeat(parts.size) { add(null) }
-				}
-				smsManager.sendMultipartTextMessage(destination, null, ArrayList(parts), nullIntents, nullIntents)
-			}
+			MmsSender.send(context, destination, body)
 		}.onFailure { error ->
-			Log.e(forwardingTag, "Failed to forward SMS to $destination", error)
+			Log.e(forwardingTag, "Failed to forward message to $destination", error)
 		}
 	}
 
